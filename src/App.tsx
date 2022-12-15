@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 
 import './App.css';
 import useInterval from './hooks/useInterval';
@@ -7,13 +7,10 @@ import applePixels from './assets/applePixels.png';
 import monitor from './assets/oldMonitor.png';
 
 /*CONSTANTS*/
-
 // width
 const canvasX = 1000;
-
 // heigth
 const canvasY = 1000;
-
 //starting point
 const initialSnake = [
   [4, 10],
@@ -39,9 +36,62 @@ function App() {
 
   useInterval(() => runGame(), delay);
 
-  const play = () => {};
+  useEffect(() => {
+    let fruit = document.getElementById('fruit') as HTMLCanvasElement;
+    if (canvasRef.current) {
+      const canvas = canvasRef.current;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.setTransform(scale, 0, 0, scale, 0, 0);
+        ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+        ctx.fillStyle = '#a3d001';
+        snake.forEach(([x, y]) => ctx.fillRect(x, y, 1, 1));
+        ctx.drawImage(fruit, apple[0], apple[1], 1, 1);
+      }
+    }
+  }, [snake, apple, gameOver]);
 
-  const changeDirection = (e) => {};
+  const handleSetScore = () => {
+    if (score > Number(localStorage.getItem('snakeScore'))) {
+      localStorage.setItem('snakeScore', JSON.stringify(score));
+    }
+  };
+
+  const play = () => {
+    setSnake(initialSnake);
+    setApple(initialApple);
+    setDirection([1, 0]);
+    setDelay(timeDelay);
+    setScore(0);
+    setGameOver(false);
+  };
+
+  const checkCollision = (head: number[]) => {
+    for (let i = 0; i < head.length; i++) {
+      if (head[i] < 0 || head[i] * scale >= canvasX) return true;
+    }
+
+    for (const s of snake) {
+      if (head[0] === s[0] && head[1] === s[1]) return true;
+    }
+
+    return false;
+  };
+
+  // array of array number[][]
+  const appleAte = (newSnake: number[][]) => {
+    // random coordinates within the canvas
+    let coordinate = apple.map(() =>
+      Math.floor((Math.random() * canvasX) / scale)
+    );
+    if (newSnake[0][0] === apple[0] && newSnake[0][1] === apple[1]) {
+      let newApple = coordinate;
+      setScore(score + 1);
+      setApple(newApple);
+      return true;
+    }
+    return false;
+  };
 
   const runGame = () => {
     // make a copy of our current snake
@@ -49,14 +99,14 @@ function App() {
     // get the first element of the first array [0][0], get the second element of the first array
     const newSnakeHead = [
       newSnake[0][0] + direction[0],
-      (newSnake[0][1] = direction[1]),
+      newSnake[0][1] + direction[1],
     ];
     //Inserts new elements at the start of an array, and returns the new length of the array
     // thus we are adding newSnakeHead to the beginning of ...snake
     newSnake.unshift(newSnakeHead);
 
     // chzck if we hit the wall then reset
-    if (chackCollision(newSnakeHead)) {
+    if (checkCollision(newSnakeHead)) {
       setDelay(null);
       setGameOver(true);
       handleSetScore();
@@ -70,10 +120,28 @@ function App() {
     setSnake(newSnake);
   };
 
+  const changeDirection = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    switch (e.key) {
+      case 'ArrowLeft':
+        setDirection([-1, 0]);
+        break;
+      case 'ArrowUp':
+        setDirection([0, -1]);
+        break;
+      case 'ArrowRight':
+        setDirection([1, 0]);
+        break;
+      case 'ArrowDown':
+        setDirection([0, 1]);
+        break;
+    }
+  };
+
   return (
     <div onKeyDown={(e) => changeDirection(e)}>
-      <img src={applePixels} alt="" width="30" />
-      <img src={monitor} alt="" width="30" />
+      <img id="fruit" src={applePixels} alt="" width="30" />
+
+      <img src={monitor} alt="fruit" width="4000" className="monitor" />
       <canvas
         width={`${canvasX}px`}
         height={`${canvasY}px`}
